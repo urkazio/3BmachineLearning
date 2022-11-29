@@ -21,14 +21,14 @@ class PerceptronModel(object):
     def run(self, x):
         """
         Calculates the score assigned by the perceptron to a data point x.
-        
+
         Inputs:
             x: a node with shape (1 x dimensions)
         Returns: a node containing a single number (the score)
         Deberiais obtener el producto escalar (o producto punto) que es "equivalente" a la distancia del coseno
         """
         "*** YOUR CODE HERE ***"
-
+        return nn.DotProduct(x, self.w)
 
 
 
@@ -36,21 +36,33 @@ class PerceptronModel(object):
         """
         Calculates the predicted class for a single data point `x`.
         Dependiendo del valor del coseno devolvera 1 o -1
-        
+
         Returns: 1 or -1
         """
         "*** YOUR CODE HERE ***"
-
+        if nn.as_scalar(self.run(x)) >= 0:
+            return 1
+        else:
+            return -1
 
 
 
     def train(self, dataset):
         """
         Train the perceptron until convergence.
-        Hasta que TODOS los ejemplos del train esten bien clasificados. Es decir, hasta que la clase predicha en se corresponda con la real en TODOS los ejemplos del train
+        Hasta que TODOS los ejemplos del train esten bien clasificados. Es decir, hasta que la clase predicha en
+        se corresponda con la real en TODOS los ejemplos del train
         """
         "*** YOUR CODE HERE ***"
-
+        convergencia = False
+        batch_size = 1
+        while not convergencia:
+            convergencia = True  # momentaneo
+            for x, y in dataset.iterate_once(batch_size):
+                yp = self.get_prediction(x)
+                if yp != nn.as_scalar(y):
+                    convergencia = False
+                    self.w.update(x, nn.as_scalar(y))  # coño no entendia q funcionaba asi
 
 
 
@@ -65,17 +77,24 @@ class RegressionModel(object):
     """
     def __init__(self):
         # Initialize your model parameters here
-        # For example:
-        # self.batch_size = 20
-        # self.w0 = nn.Parameter(1, 5)
-        # self.b0 = nn.Parameter(1, 5)
-        # self.w1 = nn.Parameter(5, 1)
-        # self.b1 = nn.Parameter(1, 1)
-        # self.lr = -0.01
-        #
-        "*** YOUR CODE HERE ***"
+        self.batch_size = 20
+        self.lr = -0.002
 
+        # entrada
+        self.w0 = nn.Parameter(1, 15)
+        self.b0 = nn.Parameter(1, 15)
 
+        # intermedia 1
+        self.w1 = nn.Parameter(15, 10)
+        self.b1 = nn.Parameter(1, 10)
+
+        # intermedia 2
+        self.w2 = nn.Parameter(10, 5)
+        self.b2 = nn.Parameter(1, 5)
+
+        # salida
+        self.w3 = nn.Parameter(5, 1)
+        self.b3 = nn.Parameter(1, 1)
 
 
 
@@ -91,9 +110,14 @@ class RegressionModel(object):
         """
         "*** YOUR CODE HERE ***"
 
+        # nn.Linear() realiza la multiplicacion matricial
+        # ejecucion feedForward !!! y devuelve el array de probabilidades de cada clase
 
-
-
+        capa1 = nn.AddBias(nn.Linear(x, self.w0), self.b0)
+        capa2 = nn.AddBias(nn.Linear(nn.ReLU(capa1), self.w1), self.b1)
+        capa3 = nn.AddBias(nn.Linear(nn.ReLU(capa2), self.w2), self.b2)
+        capa4 = nn.AddBias(nn.Linear(nn.ReLU(capa3), self.w3), self.b3)
+        return capa4
 
 
 
@@ -106,36 +130,63 @@ class RegressionModel(object):
             y: a node with shape (batch_size x 1), containing the true y-values
                 to be used for training
         Returns: a loss node
-                ----> ES FACIL COPIA Y PEGA ESTO Y ANNADE LA VARIABLE QUE HACE FALTA PARA CALCULAR EL ERROR 
+                ----> ES FACIL COPIA Y PEGA ESTO Y ANNADE LA VARIABLE QUE HACE FALTA PARA CALCULAR EL ERROR
                 return nn.SquareLoss(self.run(x),ANNADE LA VARIABLE QUE ES NECESARIA AQUI), para medir el error, necesitas comparar el resultado de tu prediccion con .... que?
         """
-        "*** YOUR CODE HERE ***"
 
+        # error cuadratico tras una iteracion
 
-
+        return nn.SquareLoss(self.run(x), y)
 
 
 
     def train(self, dataset):
         """
         Trains the model.
-        
+
         """
-        
         batch_size = self.batch_size
         total_loss = 100000
-        while total_loss > 0.02:
+        while total_loss > 0.01: # early stop ---> objetivo bajar de 0.02 para q2:6/6
+
             #ITERAR SOBRE EL TRAIN EN LOTES MARCADOS POR EL BATCH SIZE COMO HABEIS HECHO EN LOS OTROS EJERCICIOS
             #ACTUALIZAR LOS PESOS EN BASE AL ERROR loss = self.get_loss(x, y) QUE RECORDAD QUE GENERA
             #UNA FUNCION DE LA LA CUAL SE  PUEDE CALCULAR LA DERIVADA (GRADIENTE)
 
-            "*** YOUR CODE HERE ***"
+            for x, y in dataset.iterate_once(batch_size):
+                total_loss = self.get_loss(x, y)
+                """
+                --> gradients(loss, parameters):
+
+                Usage: nn.gradients(loss, parameters)
+                Inputs:
+                    loss: a SquareLoss or SoftmaxLoss node
+                    parameters: a list (or iterable) containing Parameter nodes
+                Output: a list of Constant objects, representing the gradient of the loss
+                    with respect to each provided parameter.
+                """
+
+                # obtiene una lista de constantes por cada parametro de entrada en la lista
+                # dicha constante representa el gradiente de la perdida respecto a cada parametro
+                gradientes = nn.gradients(total_loss, [self.w0, self.b0, self.w1, self.b1, self.w2, self.b2, self.w3, self.b3])
+
+                # teniendo el gradiente de cada param. actualizamos todas las variables
+                self.w0.update(gradientes[0], self.lr)
+                self.b0.update(gradientes[1], self.lr)
+                self.w1.update(gradientes[2], self.lr)
+                self.b1.update(gradientes[3], self.lr)
+                self.w2.update(gradientes[4], self.lr)
+                self.b2.update(gradientes[5], self.lr)
+                self.w3.update(gradientes[6], self.lr)
+                self.b3.update(gradientes[7], self.lr)
+
+                # convertirlo a escalar para luego poder hacer la comparacion con int
+                total_loss = nn.as_scalar(total_loss)
 
 
 
 
 
-            
 class DigitClassificationModel(object):
     """
     A model for handwritten digit classification using the MNIST dataset.
@@ -158,10 +209,10 @@ class DigitClassificationModel(object):
         output_size = 10 # TAMANO EQUIVALENTE AL NUMERO DE CLASES DADO QUE QUIERES OBTENER 10 CLASES
         pixel_dim_size = 28
         pixel_vector_length = pixel_dim_size* pixel_dim_size
- 
+
         "*** YOUR CODE HERE ***"
 
-     
+
 
     def run(self, x):
         """
@@ -194,7 +245,7 @@ class DigitClassificationModel(object):
         POR EJEMPLO: [0,0,0,0,0,1,0,0,0,0,0] seria la y correspondiente al 5
                      [0,1,0,0,0,0,0,0,0,0,0] seria la y correspondiente al 1
 
-        EN ESTE CASO ESTAMOS HABLANDO DE MULTICLASS, ASI QUE TIENES QUE CALCULAR 
+        EN ESTE CASO ESTAMOS HABLANDO DE MULTICLASS, ASI QUE TIENES QUE CALCULAR
         Inputs:
             x: a node with shape (batch_size x 784)
             y: a node with shape (batch_size x 10)
@@ -205,7 +256,7 @@ class DigitClassificationModel(object):
                                               # LOS 10 VALORES DEL "COSENO". TENIENDO EL Y REAL POR CADA EJEMPLO
                                               # APLICA SOFTMAX PARA CALCULAR LA PROBABILIDA MAX
                                               # Y ESA SERA SU PREDICCION,
-                                              # LA CLASE QUE MUESTRE EL MAYOR PROBABILIDAD, LA PREDICCION MAS PROBABLE, Y LUEGO LA COMPARARA CON Y 
+                                              # LA CLASE QUE MUESTRE EL MAYOR PROBABILIDAD, LA PREDICCION MAS PROBABLE, Y LUEGO LA COMPARARA CON Y
 
     def train(self, dataset):
         """
@@ -213,7 +264,7 @@ class DigitClassificationModel(object):
         EN ESTE CASO EN VEZ DE PARAR CUANDO EL ERROR SEA MENOR QUE UN VALOR O NO HAYA ERROR (CONVERGENCIA),
         SE PUEDE HACER ALGO SIMILAR QUE ES EN NUMERO DE ACIERTOS. EL VALIDATION ACCURACY
         NO LO TENEIS QUE IMPLEMENTAR, PERO SABED QUE EMPLEA EL RESULTADO DEL SOFTMAX PARA CALCULAR
-        EL NUM DE EJEMPLOS DEL TRAIN QUE SE HAN CLASIFICADO CORRECTAMENTE 
+        EL NUM DE EJEMPLOS DEL TRAIN QUE SE HAN CLASIFICADO CORRECTAMENTE
         """
         batch_size = self.batch_size
         while dataset.get_validation_accuracy() < 0.97:
