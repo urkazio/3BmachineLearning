@@ -203,14 +203,31 @@ class DigitClassificationModel(object):
     """
     def __init__(self):
         # Initialize your model parameters here
-        # TEN ENCUENTA QUE TIENES 10 CLASES, ASI QUE LA ULTIMA CAPA TENDRA UNA SALIDA DE 10 VALORES,
+        # TEN EN CUENTA QUE TIENES 10 CLASES, ASI QUE LA ULTIMA CAPA TENDRA UNA SALIDA DE 10 VALORES,
         # UN VALOR POR CADA CLASE
 
-        output_size = 10 # TAMANO EQUIVALENTE AL NUMERO DE CLASES DADO QUE QUIERES OBTENER 10 CLASES
+        output_size = 10  # TAMAÑO EQUIVALENTE AL NUMERO DE CLASES DADO QUE QUIERES OBTENER 10 CLASES
         pixel_dim_size = 28
         pixel_vector_length = pixel_dim_size* pixel_dim_size
 
-        "*** YOUR CODE HERE ***"
+        self.batch_size = 20
+        self.lr = -0.002
+
+        # entrada
+        self.w0 = nn.Parameter(pixel_vector_length, 100)
+        self.b0 = nn.Parameter(1, 100)
+
+        # intermedia 1
+        self.w1 = nn.Parameter(100, 100)
+        self.b1 = nn.Parameter(1, 100)
+
+        # intermedia 2
+        self.w2 = nn.Parameter(100, 100)
+        self.b2 = nn.Parameter(1, 100)
+
+        # salida
+        self.w3 = nn.Parameter(100, output_size)
+        self.b3 = nn.Parameter(1, output_size)
 
 
 
@@ -229,9 +246,11 @@ class DigitClassificationModel(object):
                 (also called logits)
             output_size = 10 # TAMANO EQUIVALENTE AL NUMERO DE CLASES DADO QUE QUIERES OBTENER 10 "COSENOS"
         """
-        "*** YOUR CODE HERE ***"
-
-
+        capa1 = nn.AddBias(nn.Linear(x, self.w0), self.b0)
+        capa2 = nn.AddBias(nn.Linear(nn.ReLU(capa1), self.w1), self.b1)
+        capa3 = nn.AddBias(nn.Linear(nn.ReLU(capa2), self.w2), self.b2)
+        capa4 = nn.AddBias(nn.Linear(nn.ReLU(capa3), self.w3), self.b3)
+        return capa4
 
 
 
@@ -251,12 +270,15 @@ class DigitClassificationModel(object):
             y: a node with shape (batch_size x 10)
         Returns: a loss node
         """
-        "*** YOUR CODE HERE ***"#NO ES NECESARIO QUE LO IMPLEMENTEIS, SE OS DA HECHO
-        return nn.SoftmaxLoss(self.run(x), y) # COMO VEIS LLAMA AL RUN PARA OBTENER POR CADA BATCH
-                                              # LOS 10 VALORES DEL "COSENO". TENIENDO EL Y REAL POR CADA EJEMPLO
-                                              # APLICA SOFTMAX PARA CALCULAR LA PROBABILIDA MAX
-                                              # Y ESA SERA SU PREDICCION,
-                                              # LA CLASE QUE MUESTRE EL MAYOR PROBABILIDAD, LA PREDICCION MAS PROBABLE, Y LUEGO LA COMPARARA CON Y
+        # NO ES NECESARIO QUE LO IMPLEMENTEIS, SE OS DA HECHO
+        return nn.SoftmaxLoss(self.run(x), y)
+
+        # COMO VEIS LLAMA AL RUN PARA OBTENER POR CADA BATCH
+        # LOS 10 VALORES DEL "COSENO". TENIENDO EL Y REAL POR CADA EJEMPLO
+        # APLICA SOFTMAX PARA CALCULAR LA PROBABILIDA MAX
+        # Y ESA SERA SU PREDICCION,
+        # LA CLASE QUE MUESTRE EL MAYOR PROBABILIDAD, LA PREDICCION MAS PROBABLE, Y LUEGO LA COMPARARA CON Y
+
 
     def train(self, dataset):
         """
@@ -271,7 +293,19 @@ class DigitClassificationModel(object):
             #ITERAR SOBRE EL TRAIN EN LOTES MARCADOS POR EL BATCH SIZE COMO HABEIS HECHO EN LOS OTROS EJERCICIOS
             #ACTUALIZAR LOS PESOS EN BASE AL ERROR loss = self.get_loss(x, y) QUE RECORDAD QUE GENERA
             #UNA FUNCION DE LA LA CUAL SE  PUEDE CALCULAR LA DERIVADA (GRADIENTE)
-            "*** YOUR CODE HERE ***"
+            for x, y in dataset.iterate_once(self.batch_size):
+                total_loss = self.get_loss(x, y)
+                gradientes = nn.gradients(total_loss, [self.w0, self.b0, self.w1, self.b1, self.w2, self.b2, self.w3, self.b3])
+
+                # teniendo el gradiente de cada param. actualizamos todas las variables
+                self.w0.update(gradientes[0], self.lr)
+                self.b0.update(gradientes[1], self.lr)
+                self.w1.update(gradientes[2], self.lr)
+                self.b1.update(gradientes[3], self.lr)
+                self.w2.update(gradientes[4], self.lr)
+                self.b2.update(gradientes[5], self.lr)
+                self.w3.update(gradientes[6], self.lr)
+                self.b3.update(gradientes[7], self.lr)
 
 
 
